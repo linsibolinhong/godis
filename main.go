@@ -1,5 +1,7 @@
 package godis
 
-func main() {
+import "fmt"
 
+func main() {
+	fmt.Println("dfadf")
 }
