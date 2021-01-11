@@ -2,13 +2,10 @@ package main
 
 import (
 	"fmt"
-	"time"
+	"github.com/linsibolinhong/godis/server"
 )
 
 func main() {
-	fmt.Println("dfadf")
-	a := 3
-	fmt.Println(a)
-	time.Sleep(time.Second)
-	time.Sleep(time.Second)
+	ser := server.NewServer(6789)
+	fmt.Println(ser.Run())
 }
