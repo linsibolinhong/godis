@@ -6,6 +6,6 @@ import (
 )
 
 func main() {
-	ser := server.NewServer(6789)
+	ser := server.NewServer(6379)
 	fmt.Println(ser.Run())
 }

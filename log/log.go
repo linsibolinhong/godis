@@ -1,6 +1,10 @@
 package log
 
-import "fmt"
+import (
+	"fmt"
+	"runtime"
+	"time"
+)
 
 type LogLevel int;
 
@@ -28,7 +32,9 @@ func init() {
 }
 
 func logPrint(level LogLevel, f string, a ...interface{}) {
-	fmt.Printf("[%v]" + f + "\n", levelSlice[level], a)
+	_, file, line, _ := runtime.Caller(2)
+	timestr := time.Now().Format("2006-01-02 15:04:05.999")
+	fmt.Printf("[%v][%v]%v:%v " + f + "\n", levelSlice[level], timestr, file, line, a)
 }
 
 func Trace(f string, a ...interface{}) {
