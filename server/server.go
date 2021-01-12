@@ -18,11 +18,12 @@ func NewServer(port int) *Server {
 func (s *Server) handler(c net.Conn) {
 	proto_ := proto.NewRedisProto(c)
 	for {
-		_, err := proto_.ReadCommand()
+		cmd, err := proto_.ReadCommand()
 		if err != nil {
 			log.Error("read failed, err=%v", err)
 			return
 		}
+		log.Info("cmd is %s", cmd.ToString())
 	}
 }
 

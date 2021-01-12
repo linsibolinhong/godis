@@ -2,10 +2,11 @@ package proto
 
 import (
 	"fmt"
-	"github.com/linsibolinhong/godis/log"
-	"github.com/linsibolinhong/godis/command"
 	"io"
 	"time"
+
+	"github.com/linsibolinhong/godis/command"
+	"github.com/linsibolinhong/godis/log"
 )
 
 const defaultBufSize = 4096
@@ -62,6 +63,12 @@ func (rp *redisProto) readParam() ([]byte, error) {
 		paramLen -= n;
 	}
 
+	err = rp.checkLineEnd()
+	if err != nil {
+		log.Error("check lined end failed, err:%v", err)
+		return nil, err
+	}
+
 	return valbuf, nil
 }
 
@@ -106,7 +113,15 @@ func (rp *redisProto) readNumber(flag byte) (int, error) {
 
 		if !checkFlags {
 			if rp.buf[rp.bufIdx] != flag {
-				log.Error("invalid flag")
+				if flag == '*' {
+					err := rp.checkLineEnd()
+					if err != nil {
+						log.Error("invalid flag %v != %v", flag,rp.buf[rp.bufIdx])
+						return -1, err
+					}
+					return 0, nil
+				}
+				log.Error("invalid flag %v != %v", string(flag),string(rp.buf[rp.bufIdx]))
 				rp.printBuf()
 				return -1, fmt.Errorf("invalid flag")
 			} else {
@@ -116,7 +131,7 @@ func (rp *redisProto) readNumber(flag byte) (int, error) {
 			}
 		}
 
-		for ; rp.bufIdx < rp.bufLen; rp.bufIdx++ {
+		for ; rp.bufIdx < rp.bufLen; {
 			c := rp.buf[rp.bufIdx]
 			if c >= '0' && c <= '9' {
 				num = num * 10 + int(c - '0')
@@ -124,6 +139,7 @@ func (rp *redisProto) readNumber(flag byte) (int, error) {
 					log.Error("too large number")
 					return -1, fmt.Errorf("too large number")
 				}
+				rp.bufIdx++
 				continue
 			}
 
@@ -132,6 +148,7 @@ func (rp *redisProto) readNumber(flag byte) (int, error) {
 				log.Error("check line end failed", err)
 				return -1, fmt.Errorf("check line end failed")
 			}
+
 			return num, nil
 		}
 	}
@@ -159,7 +176,7 @@ func (rp *redisProto) checkLineEnd() error {
 			if rp.buf[rp.bufIdx] != '\n' {
 				return fmt.Errorf("check end failed")
 			}
-			rp.bufIdx++
+			rp.bufIdx += 1
 			return nil
 		default:
 			return fmt.Errorf("nevever reached")
@@ -170,20 +187,22 @@ func (rp *redisProto) checkLineEnd() error {
 
 func (rp *redisProto) ReadCommand() (*command.Command, error) {
 	argNum, err := rp.readArgNum()
+	cmd := command.NewCommand()
 	if err != nil {
 		log.Error("read argnum failed, err:%v", err)
 		return nil, err
 	}
 
+	log.Info("arg num is %d", argNum)
 	for i := 0; i < argNum; i++ {
 		param, err := rp.readParam()
 		if err != nil {
 			log.Error("read param failed, err:%v", err)
 			return nil, err
 		}
-		log.Info("%s", string(param))
+		cmd.Params = append(cmd.Params, param)
 	}
-	return nil, nil
+	return cmd, nil
 }
 
 func (rp *redisProto) WriteResult(result *command.Result) error {
