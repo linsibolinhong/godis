@@ -1,5 +1,9 @@
 package cache
 
-type Cache struct {
-	kv map[string]string
+import "github.com/linsibolinhong/godis/command"
+
+type CommandFunc func(cmd *command.Command) (*command.Result, error)
+
+type Cache interface {
+	Command(cmd *command.Command) (*command.Result, error)
 }

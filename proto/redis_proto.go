@@ -3,6 +3,7 @@ package proto
 import (
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/linsibolinhong/godis/command"
@@ -33,6 +34,31 @@ func (rp *redisProto) readArgNum() (int, error) {
 
 func (rp *redisProto) readParamLen() (int, error) {
 	return rp.readNumber('$')
+}
+
+func (rp *redisProto) serial(s string) []byte {
+	ret := make([]byte, 0, len(s)*2 + 2)
+	ret = append(ret, '"')
+	for _, c := range s {
+		switch c {
+		case '\\':
+			ret = append(ret, '\\', '\\')
+		case '\r':
+			ret = append(ret, '\\', 'r')
+		case '\n':
+			ret = append(ret, '\\', 'n')
+		case '"':
+			ret = append(ret, '\\', '"')
+		case '\t':
+			ret = append(ret, '\\', 't')
+		case '\b':
+			ret = append(ret, '\\', 'b')
+		default:
+			ret = append(ret, byte(c))
+		}
+	}
+	ret = append(ret, '"', '\r', '\n')
+	return ret
 }
 
 func (rp *redisProto) readParam() ([]byte, error) {
@@ -188,7 +214,6 @@ func (rp *redisProto) checkLineEnd() error {
 func (rp *redisProto) ReadCommand() (*command.Command, error) {
 	argNum, err := rp.readArgNum()
 	cmd := command.NewCommand()
-	defer cmd.Parse()
 
 	if err != nil {
 		log.Error("read argnum failed, err:%v", err)
@@ -202,11 +227,38 @@ func (rp *redisProto) ReadCommand() (*command.Command, error) {
 			log.Error("read param failed, err:%v", err)
 			return nil, err
 		}
-		cmd.AppendParam(param)
+		if i == 0 {
+			cmd.Cmd = command.Method(strings.ToLower(string(param)))
+		} else {
+			cmd.AppendParam(string(param))
+		}
 	}
 	return cmd, nil
 }
 
 func (rp *redisProto) WriteResult(result *command.Result) error {
-	return nil
+	if result == nil || len(result.Ret) == 0 {
+		_, e := rp.rw.Write([]byte("+OK\r\n"))
+		return e
+	}
+
+	if len(result.Ret) == 1 {
+		_, e := rp.rw.Write(append([]byte("+"), rp.serial(result.Ret[0])...))
+		return e
+	}
+
+	ret := []byte(fmt.Sprintf("*%v\r\n", len(result.Ret)))
+	for _, p := range result.Ret {
+		ret = append(ret, []byte(fmt.Sprintf("$%d\r\n", len(p)))...)
+		ret = append(ret, rp.serial(p)...)
+
+	}
+	_, e := rp.rw.Write([]byte(ret))
+	return e
+}
+
+func (rp *redisProto) WriteError(err error) error {
+	ret := "-" + err.Error() + "\r\n"
+	_, e := rp.rw.Write([]byte(ret))
+	return e
 }

@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"github.com/linsibolinhong/godis/cache"
 	"github.com/linsibolinhong/godis/log"
 	"github.com/linsibolinhong/godis/proto"
 	"net"
@@ -9,10 +10,14 @@ import (
 
 type Server struct {
 	port int
+	c cache.Cache
 }
 
 func NewServer(port int) *Server {
-	return &Server{port: port}
+	return &Server{
+		port: port,
+		c:cache.NewSimpleCache(),
+	}
 }
 
 func (s *Server) handler(c net.Conn) {
@@ -24,6 +29,13 @@ func (s *Server) handler(c net.Conn) {
 			return
 		}
 		log.Info("cmd is %s", cmd.ToString())
+		result, err := s.c.Command(cmd)
+		if err != nil {
+			log.Error("cmd error :%v", err)
+			proto_.WriteError(err)
+		} else {
+			proto_.WriteResult(result)
+		}
 	}
 }
 
