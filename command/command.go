@@ -1,20 +1,35 @@
 package command
 
+type Method string
+
+const (
+	MethodNull = Method("null")
+	MethodGet = Method("get")
+)
+
 type Command struct {
-	Params [][]byte
+	cmd Method
+	params [][]byte
 }
 
 
 func NewCommand() *Command {
 	return &Command{
-		Params:[][]byte{},
+		params:[][]byte{},
 	}
 }
 
+func (c *Command) AppendParam(p []byte) {
+	c.params = append(c.params, p)
+}
+
+func (c *Command) Parse() {
+
+}
 
 func (c *Command) ToString() string {
-	ret := ""
-	for _, param := range c.Params {
+	ret := string(c.cmd) + "\n"
+	for _, param := range c.params {
 		ret += string(param) + "\n"
 	}
 	return ret

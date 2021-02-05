@@ -188,6 +188,8 @@ func (rp *redisProto) checkLineEnd() error {
 func (rp *redisProto) ReadCommand() (*command.Command, error) {
 	argNum, err := rp.readArgNum()
 	cmd := command.NewCommand()
+	defer cmd.Parse()
+
 	if err != nil {
 		log.Error("read argnum failed, err:%v", err)
 		return nil, err
@@ -200,7 +202,7 @@ func (rp *redisProto) ReadCommand() (*command.Command, error) {
 			log.Error("read param failed, err:%v", err)
 			return nil, err
 		}
-		cmd.Params = append(cmd.Params, param)
+		cmd.AppendParam(param)
 	}
 	return cmd, nil
 }
